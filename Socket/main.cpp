@@ -248,7 +248,7 @@ int STAYPROC BOSBusyForm( StayEvent s, StayEvent id )
 	unsigned short srvrAT = 10;
 	//создание экземпл€ра класса глобальных переменных
 	Singleton &glb = Singleton::getInstance();
-	glb.socketType = 25;//тип сокета 23 - с задержками, 25 - без
+	glb.socketType = 25;
 	char errorMsg[100];
 	errorMsg[0] = '\0';
 	int fieldlen = 0;
@@ -268,7 +268,7 @@ int STAYPROC BOSBusyForm( StayEvent s, StayEvent id )
 			srvrPort = J_SRVPORT;
 			srvrDL = J_SRVDL;
 			srvrAT = J_SRVAT;
-			glb.socketType = 25;//J_SRVType;
+			glb.socketType = 25;
 			if(glb.socketType != 25) {
 				if(B_SvrAdr->bs)
 					Close(B_SvrAdr);
