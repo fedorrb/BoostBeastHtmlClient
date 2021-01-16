@@ -30,6 +30,7 @@
 #include "socketcl.h"
 #include "serveraddr.h"
 #include "busyindc.h"//BUSY_FORM
+#include "moduls_check.h"
 using namespace std;
 using std::string;
 using std::vector;
@@ -56,6 +57,7 @@ int GetNumPtk(vector<string> & messageToSend);
 void replaceAll(std::string& str, const std::string& from, const std::string& to);
 int HttpClientSync(string ip, string port, vector<string>& messageToSend, vector<string>& receivedMessage);
 bool LoadJsonFromFileHtml(const char* in_filename, vector<string>& messageToSend);
+string GetMd5
 
 USETOOLS;USESHELL;USETECH;
 
@@ -575,7 +577,7 @@ int HttpClientSync(string ip, string port, vector<string>& messageToSend, vector
 		// Make the connection on the IP address we get from a lookup
 		stream.connect(results);
 
-		// Set up an HTTP GET request message
+		// Set up an HTTP POST request message
 		//http::request<http::string_body> req{ http::verb::get, target, version };
 		http::request<http::string_body> req{ http::verb::post, target, version };
 		req.set(http::field::host, ip);

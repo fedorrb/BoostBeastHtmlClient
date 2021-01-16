@@ -105,6 +105,8 @@
     <ClCompile Include="..\..\..\Stay45new\Debug\dbgshow.cpp" />
     <ClCompile Include="..\..\..\Stay45new\Debug\Debug.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="md5.cpp" />
+    <ClCompile Include="moduls_check.cpp" />
     <ClCompile Include="Normalize.cpp" />
     <ClCompile Include="singleton.cpp" />
     <ClCompile Include="SocketCl.cpp" />
@@ -114,6 +116,8 @@
   <ItemGroup>
     <ClInclude Include="interface.h" />
     <ClInclude Include="Mat.hpp" />
+    <ClInclude Include="md5.h" />
+    <ClInclude Include="moduls_check.h" />
     <ClInclude Include="Normalize.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="resource1.h" />
