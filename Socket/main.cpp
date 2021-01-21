@@ -11,7 +11,6 @@
 #include <string>
 #include <exception>
 #include <stdio.h>
-//#include <windows.h>//sysinfo
 
 #include <boost/beast/core.hpp>
 #include <boost/beast/http.hpp>
@@ -671,8 +670,22 @@ void GetSystemInfo() {
 	GetSystemInfo(&siSysInfo);
 	glb.dwNumberOfProcessors = siSysInfo.dwNumberOfProcessors;
 	glb.dwPageSize = siSysInfo.dwPageSize;
-
+	//Screen
 	glb.screenX = GetSystemMetrics(SM_CXSCREEN);
 	glb.screenY = GetSystemMetrics(SM_CYSCREEN);
-
+	int maxx = 0;
+	int maxy = 0;
+	DEVMODE dm = { 0 };
+	dm.dmSize = sizeof(dm);
+	for (int iModeNum = 0; EnumDisplaySettings(NULL, iModeNum, &dm) != 0; iModeNum++) { //iModeNum = ENUM_CURRENT_SETTINGS
+		if (dm.dmPelsWidth > maxx) {
+			glb.screenMaxX = dm.dmPelsWidth;
+			glb.screenMaxY = dm.dmPelsHeight;
+		}
+	}
+	//RAM
+	MEMORYSTATUSEX statex;
+	statex.dwLength = sizeof(statex);
+	GlobalMemoryStatusEx(&statex);
+	glb.dwRamSize = statex.ullTotalPhys / (1024*1024);
 }

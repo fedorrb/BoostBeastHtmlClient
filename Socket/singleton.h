@@ -47,8 +47,11 @@ class Singleton
     unsigned long dwMinorVersion;
     unsigned long dwNumberOfProcessors;
     unsigned long dwPageSize;
+    unsigned long dwRamSize;
     int screenX;
     int screenY;
+    int screenMaxX;
+    int screenMaxY;
 	int vidpov;
 	int socketType;
     bool html;
