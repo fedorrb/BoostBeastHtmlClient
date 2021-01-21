@@ -42,6 +42,13 @@ class Singleton
 	std::string fileNameIn;
 	std::string fileNameOut;
 	std::string pathAdmin;
+    std::string md5;
+    unsigned long dwMajorVersion;
+    unsigned long dwMinorVersion;
+    unsigned long dwNumberOfProcessors;
+    unsigned long dwPageSize;
+    int screenX;
+    int screenY;
 	int vidpov;
 	int socketType;
     bool html;

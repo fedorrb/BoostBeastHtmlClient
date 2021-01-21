@@ -11,6 +11,7 @@
 #include <string>
 #include <exception>
 #include <stdio.h>
+//#include <windows.h>//sysinfo
 
 #include <boost/beast/core.hpp>
 #include <boost/beast/http.hpp>
@@ -57,32 +58,33 @@ int GetNumPtk(vector<string> & messageToSend);
 void replaceAll(std::string& str, const std::string& from, const std::string& to);
 int HttpClientSync(string ip, string port, vector<string>& messageToSend, vector<string>& receivedMessage);
 bool LoadJsonFromFileHtml(const char* in_filename, vector<string>& messageToSend);
-string GetMd5
+void GetSystemInfo();
 
 USETOOLS;USESHELL;USETECH;
 
 ASOPDMAIN("ќбм≥н через сокет.");
 
-int main (int argc, char** argv)
+int main(int argc, char** argv)
 {
 	int result = 1;
 
-	INITTOOLS();INITSHELL();INITTECH();
-	Singleton &glb = Singleton::getInstance(); 	//создание экземпл€ра класса глобальных переменных
+	INITTOOLS(); INITSHELL(); INITTECH();
+	Singleton& glb = Singleton::getInstance(); 	//создание экземпл€ра класса глобальных переменных
 	StackReset();
-	SetDateDelim ('.');
+	SetDateDelim('.');
 	Initiate();
 	glb.html = true;
-	if(!StartProcSet(&glb.insCode,NULL,glb.insFio,NULL))
+	if (!StartProcSet(&glb.insCode, NULL, glb.insFio, NULL))
 	{
 		glb.rayon = 2608;
 		glb.uzel = 2608;
 	}
 	else
 	{
-		glb.rayon = fGetTech ("район");
-		glb.uzel = fGetTech ("узел");
+		glb.rayon = fGetTech("район");
+		glb.uzel = fGetTech("узел");
 	}
+	GetSystemInfo();
 	if(argc == 3) {
 		glb.pathAdmin = argv[0];
 		glb.fileNameIn = argv[1]; //файл с вход€щим сообщением
@@ -642,4 +644,35 @@ int HttpClientSync(string ip, string port, vector<string>& messageToSend, vector
 		return EXIT_FAILURE;
 	}
 	return EXIT_SUCCESS;
+}
+
+void GetSystemInfo() {
+	Singleton& glb = Singleton::getInstance();
+	//md5
+	char pathPrototype[256];
+	glb.md5 = "not found prototype";
+	if (FFind("ASOPD:prototype.ini")) {
+		FullPath(pathPrototype, "ASOPD:prototype.ini");
+		glb.md5 = GetMD5(pathPrototype);
+	}
+	// Get the Windows version.
+	DWORD dwVersion = 0;
+	DWORD dwMajorVersion = 0;
+	DWORD dwMinorVersion = 0;
+	DWORD dwBuild = 0;
+	dwVersion = GetVersion();
+	glb.dwMajorVersion = (DWORD)(LOBYTE(LOWORD(dwVersion)));
+	glb.dwMinorVersion = (DWORD)(HIBYTE(LOWORD(dwVersion)));
+	// Get the build number.
+	if (dwVersion < 0x80000000)
+		dwBuild = (DWORD)(HIWORD(dwVersion));
+	//SYSTEM_INFO structure
+	SYSTEM_INFO siSysInfo;
+	GetSystemInfo(&siSysInfo);
+	glb.dwNumberOfProcessors = siSysInfo.dwNumberOfProcessors;
+	glb.dwPageSize = siSysInfo.dwPageSize;
+
+	glb.screenX = GetSystemMetrics(SM_CXSCREEN);
+	glb.screenY = GetSystemMetrics(SM_CYSCREEN);
+
 }
