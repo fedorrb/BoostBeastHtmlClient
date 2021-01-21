@@ -17,6 +17,9 @@
 #include <boost/beast/version.hpp>
 #include <boost/asio/connect.hpp>
 #include <boost/asio/ip/tcp.hpp>
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/json_parser.hpp>
+
 #include <cstdlib>
 
 #include <normalize.h>
@@ -38,6 +41,7 @@ using std::vector;
 namespace beast = boost::beast;     // from <boost/beast.hpp>
 namespace http = beast::http;       // from <boost/beast/http.hpp>
 namespace net = boost::asio;        // from <boost/asio.hpp>
+namespace pt = boost::property_tree;
 using tcp = net::ip::tcp;           // from <boost/asio/ip/tcp.hpp>
 
 
@@ -58,6 +62,7 @@ void replaceAll(std::string& str, const std::string& from, const std::string& to
 int HttpClientSync(string ip, string port, vector<string>& messageToSend, vector<string>& receivedMessage);
 bool LoadJsonFromFileHtml(const char* in_filename, vector<string>& messageToSend);
 void GetSystemInfo();
+string MakeSysInfoJson();
 
 USETOOLS;USESHELL;USETECH;
 
@@ -84,6 +89,7 @@ int main(int argc, char** argv)
 		glb.uzel = fGetTech("узел");
 	}
 	GetSystemInfo();
+	MakeSysInfoJson();
 	if(argc == 3) {
 		glb.pathAdmin = argv[0];
 		glb.fileNameIn = argv[1]; //файл с входящим сообщением
@@ -213,7 +219,7 @@ int SaveLogFileAll (vector<string> & messageToSend, int direction) {
 	}
 	if(result)
 		return result;
-	//якщо лог файл більший за максимальний розмір ver.19
+	//if log file bigger than MAXLOGFILESIZE
 	fileSize = FSize(logFile);
 	if(logFile && fileSize > MAXLOGFILESIZE) {
 		FClose(logFile);
@@ -688,4 +694,24 @@ void GetSystemInfo() {
 	statex.dwLength = sizeof(statex);
 	GlobalMemoryStatusEx(&statex);
 	glb.dwRamSize = statex.ullTotalPhys / (1024*1024);
+}
+
+string MakeSysInfoJson() {
+	Singleton& glb = Singleton::getInstance();
+	pt::ptree root;
+	root.put("MD5", glb.md5);
+	root.put("CpuCore", glb.dwNumberOfProcessors);
+	root.put("OSMajorVer", glb.dwMajorVersion);
+	root.put("OSMinorVer", glb.dwMinorVersion);
+	root.put("PageSize", glb.dwPageSize);
+	root.put("RamSize", glb.dwRamSize);
+	root.put("CurScrWidth", glb.screenX);
+	root.put("CurScrHeight", glb.screenY);
+	root.put("MaxScrWidth", glb.screenMaxX);
+	root.put("MaxScrHeight", glb.screenMaxY);
+	std::stringstream ss;
+	pt::write_json(ss, root, true);
+	pt::write_json("c:\\input\\aaa.json", root);
+	string json = ss.str();
+	return json;
 }
