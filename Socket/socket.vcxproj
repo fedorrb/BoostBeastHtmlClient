@@ -109,7 +109,6 @@
     <ClCompile Include="moduls_check.cpp" />
     <ClCompile Include="Normalize.cpp" />
     <ClCompile Include="singleton.cpp" />
-    <ClCompile Include="SocketCl.cpp" />
     <ClCompile Include="Xme\BusyIndc.cpp" />
     <ClCompile Include="Xme\serveraddr.cpp" />
   </ItemGroup>
@@ -122,7 +121,6 @@
     <ClInclude Include="resource.h" />
     <ClInclude Include="resource1.h" />
     <ClInclude Include="singleton.h" />
-    <ClInclude Include="SocketCl.h" />
     <ClInclude Include="Xme\BusyIndc.h" />
     <ClInclude Include="Xme\serveraddr.h" />
   </ItemGroup>

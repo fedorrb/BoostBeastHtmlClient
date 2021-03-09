@@ -41,6 +41,7 @@ class Singleton
 	int dtClosedInv;
 	std::string fileNameIn;
 	std::string fileNameOut;
+    std::string reqCode;
 	std::string pathAdmin;
     std::string md5;
     unsigned long dwMajorVersion;
@@ -54,6 +55,6 @@ class Singleton
     int screenMaxY;
 	int vidpov;
 	int socketType;
-    bool html;
+    bool debug;
 };
 #endif
