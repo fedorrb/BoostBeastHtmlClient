@@ -56,6 +56,7 @@ int HttpClientSync(string ip, string port, vector<string>& messageToSend, vector
 bool LoadJsonFromFileHtml(const char* in_filename, vector<string>& messageToSend);
 void GetSystemInfo();
 string MakeSysInfoJson();
+void GetAddress(string& srvrIP, string& srvrPort);
 
 USETOOLS;USESHELL;USETECH;
 
@@ -95,6 +96,7 @@ int main(int argc, char** argv)
 		result = glb.vidpov;
 	}
 	else {
+		glb.reqCode = "999";
 		glb.pathAdmin = argv[0];
 		Display (WndSetAddr, BOSWSetAddr);
 	}
@@ -120,7 +122,6 @@ bool LoadJsonFromFileHtml(const char* in_filename, vector<string>& messageToSend
 		while (FReadText(fJsonIn, buf, MAXMESSAGE) > 0) {
 			messageToSend.push_back(buf);
 		}
-		//messageToSend.push_back("\r\n\1");
 		FClose(fJsonIn);
 		result = true;
 	}
@@ -219,13 +220,10 @@ int STAYPROC BOSBusyForm( StayEvent s, StayEvent id )
 {
 	char jsonOut[MAXMESSAGE];
 	jsonOut[0] = '\0';
-	string srvrIP = "10.0.5.155";
-	string srvrPort = "1861";
-	unsigned short srvrDL = 4; 
-	unsigned short srvrAT = 10;
+	string srvrIP = "10.0.8.92";
+	string srvrPort = "1871";
 	//создание экземпляра класса глобальных переменных
 	Singleton &glb = Singleton::getInstance();
-	glb.socketType = 25;
 	char errorMsg[100];
 	errorMsg[0] = '\0';
 	int fieldlen = 0;
@@ -234,43 +232,12 @@ int STAYPROC BOSBusyForm( StayEvent s, StayEvent id )
 
 	switch( s )
 	{
-		//case _Before:
 	case _BeforeWindow:
-		if(!B_SvrAdr->bs)
-			OpenCreate(B_SvrAdr, RDWR|ANRDWR);
-		if(Size(B_SvrAdr)) {
-			SetBegin(B_SvrAdr);
-			GetNext(B_SvrAdr);
-			srvrIP = J_SRVIP;
-			srvrPort = J_SRVPORT;
-			srvrDL = J_SRVDL;
-			srvrAT = J_SRVAT;
-			glb.socketType = 25;
-			if(glb.socketType != 25) {
-				if(B_SvrAdr->bs)
-					Close(B_SvrAdr);
-				DeleteSrvrAdr();
-				if(!B_SvrAdr->bs)
-					OpenCreate(B_SvrAdr, RDWR|ANRDWR);
-				StrForm(J_SRVIP, 15, srvrIP.c_str());
-				StrForm(J_SRVPORT, 5, srvrPort.c_str());
-				J_SRVDL = srvrDL;
-				J_SRVAT = srvrAT;
-				J_SRVType = 25; //default
-				glb.socketType = 25;
-				Put(B_SvrAdr);
-			}
-		}
-		else {
-			StrForm(J_SRVIP, 15, srvrIP.c_str());
-			StrForm(J_SRVPORT, 5, srvrPort.c_str());
-			J_SRVDL = srvrDL;
-			J_SRVAT = srvrAT;
-			J_SRVType = 25; //default
-			glb.socketType = 25;
-			Put(B_SvrAdr);
-		}
-
+		if (!B_SvrAdr->bs)
+			OpenCreate(B_SvrAdr, RDWR | ANRDWR);
+		GetAddress(srvrIP, srvrPort);
+		if (B_SvrAdr->bs)
+			Close(B_SvrAdr);
 		if (LoadJsonFromFileHtml(glb.fileNameIn.c_str(), messageToSend)) {
 			if (HttpClientSync(srvrIP, srvrPort, messageToSend, receivedLines)) {
 				//error
@@ -292,8 +259,6 @@ int STAYPROC BOSBusyForm( StayEvent s, StayEvent id )
 			SaveLogFileAll(receivedLines, 0);
 		}
 
-		if(B_SvrAdr->bs)
-			Close(B_SvrAdr);
 		Exit(_Ok);
 		break;
 	}
@@ -303,8 +268,8 @@ int STAYPROC BOSBusyForm( StayEvent s, StayEvent id )
 int STAYPROC BOSWSetAddr( StayEvent s, StayEvent id )
 {
 	Singleton &glb = Singleton::getInstance();
-	string srvrIP = "10.0.5.155";
-	string srvrPort = "1861";
+	string srvrIP = "10.0.8.92";
+	string srvrPort = "1871";
 	char buf[MAXMESSAGE];
 	unsigned short srvrDL = 4; 
 	unsigned short srvrAT = 10;
@@ -312,63 +277,23 @@ int STAYPROC BOSWSetAddr( StayEvent s, StayEvent id )
 	memset(errorMsg, 0, sizeof(errorMsg));	
 	char buf1[64];
 	memset(buf1, 0, sizeof(buf1));
-	StrForm(buf1,64,"rajon:%d,insp:%d,code:999|[{\"TEST\":\"TEST\"}]\r\n\1", glb.rayon, glb.insCode);
-	//StrForm(buf1,64,"rajon:%d,sys:3,insp:%d,code:999|[{\"TEST\":\"TEST\"}]\r\n\1", glb.rayon, glb.insCode);
+	StrForm(buf1,64,"[{\"TEST\":\"TEST\"}]");
 	string strJsonIn = buf1;
 	string strJsonOk = "{\"TEST\":\"OK\"}";
-	int loc = 0;
 	vector<string> textToSend;
-	unsigned short pcPort = 1861;
-	string tmpStr;
-	stringstream ss;
+	string errorStr = "";
+	int loc = 0;
 
 	switch( s )
 	{
 	case _BeforeWindow:
-		if(!B_SvrAdr->bs)
-			OpenCreate(B_SvrAdr, RDWR|ANRDWR);
-		if(Size(B_SvrAdr)) {
-			SetBegin(B_SvrAdr);
-			GetNext(B_SvrAdr);
-			srvrIP = J_SRVIP;
-			srvrPort = J_SRVPORT;
-			srvrDL = J_SRVDL;
-			srvrAT = J_SRVAT;
-			glb.socketType = J_SRVType;
-			if(glb.socketType != 25) {
-				if(B_SvrAdr->bs)
-					Close(B_SvrAdr);
-				DeleteSrvrAdr();
-				if(!B_SvrAdr->bs)
-					OpenCreate(B_SvrAdr, RDWR | ANRDWR);
-				StrForm(J_SRVIP, 15, srvrIP.c_str());
-				StrForm(J_SRVPORT, 5, srvrPort.c_str());
-				J_SRVDL = srvrDL;
-				J_SRVAT = srvrAT;
-				J_SRVType = 25; //default
-				glb.socketType = 25;
-				Put(B_SvrAdr);
-			}
-		}
-		else {
-			if(B_SvrAdr->bs)
-				Close(B_SvrAdr);
-			DeleteSrvrAdr();
-			if(!B_SvrAdr->bs)
-				OpenCreate(B_SvrAdr, RDWR | ANRDWR);
-			StrForm(J_SRVIP, 15, srvrIP.c_str());
-			StrForm(J_SRVPORT, 5, srvrPort.c_str());
-			J_SRVDL = 2;
-			J_SRVAT = 10;
-			J_SRVType = 25; //default
-			glb.socketType = 25;
-			Put(B_SvrAdr);
-		}
+		if (!B_SvrAdr->bs)
+			OpenCreate(B_SvrAdr, RDWR | ANRDWR);
+		GetAddress(srvrIP, srvrPort);
 		ShowWnd( NULL );
 		break;
 	case _Enter:
 	case BUT1:
-		glb.socketType = 25;
 		Modify(B_SvrAdr);
 		if(B_SvrAdr->bs)
 			Close(B_SvrAdr);
@@ -379,7 +304,6 @@ int STAYPROC BOSWSetAddr( StayEvent s, StayEvent id )
 		Exit(_Ok);
 		break;
 	case BUT2:
-		glb.socketType = 25;
 		Modify(B_SvrAdr);
 		receivedLines.clear();
 		if(Size(B_SvrAdr)) {
@@ -389,13 +313,25 @@ int STAYPROC BOSWSetAddr( StayEvent s, StayEvent id )
 			GetNext(B_SvrAdr);
 			srvrIP = J_SRVIP;
 			srvrPort = J_SRVPORT;
-			srvrDL = J_SRVDL;
-			srvrAT = J_SRVAT;
 			textToSend.push_back(strJsonIn);
-			srvrDL = 5;
-			Ldv(srvrPort.c_str()); pcPort = Sti(0);
-			//
-
+			if (HttpClientSync(srvrIP, srvrPort, textToSend, receivedLines)) {
+				for (const auto& piece : receivedLines) errorStr += piece; //copy vector to string
+				MsgBox("Помилка", errorStr.c_str());
+				receivedLines.push_back(".    IP = " + srvrIP + ", PORT = " + srvrPort);
+				SaveLogFileAll(receivedLines, 1);//error
+			}
+			else {
+				std::transform(receivedLines[0].begin(), receivedLines[0].end(), receivedLines[0].begin(), ::toupper);
+				loc = receivedLines[0].find(strJsonOk);
+				if (loc != string::npos)
+					MsgBox("Тест ОК", "Тест ОК");
+				else {
+					for (const auto& piece : receivedLines) errorStr += piece;
+					MsgBox("Помилка", errorStr.c_str());
+				}
+				receivedLines.push_back(".    IP = " + srvrIP + ", PORT = " + srvrPort);
+				SaveLogFileAll(receivedLines, 1);//ok
+			}
 		}
 		else {
 			StrForm(errorMsg, 100, "Не введено ір-адресу сервера!");
@@ -431,7 +367,6 @@ int HttpClientSync(string ip, string port, vector<string>& messageToSend, vector
 	try
 	{
 		receivedMessage.clear();
-		//auto const target = "/api/asopd/v2/r/71";
 		auto const target = "/api/asopd/v2/r/" + glb.reqCode;
 		int version = 11;
 
@@ -469,8 +404,6 @@ int HttpClientSync(string ip, string port, vector<string>& messageToSend, vector
 			req.body().append(messageToSend[i]);
 		}
 
-		//req.body().append("\r\n\r\n");
-
 		req.prepare_payload();
 
 		// Send the HTTP request to the remote host
@@ -494,7 +427,6 @@ int HttpClientSync(string ip, string port, vector<string>& messageToSend, vector
 		if (glb.debug) {
 			ofstream outfile;
 			outfile.open("c:\\input\\aaa.txt");
-			//outfile << "Hello" << std::endl;
 			outfile << "REQUEST:" << std::endl;
 			outfile << req << std::endl;
 			outfile << "--------------------------------" << std::endl;
@@ -516,9 +448,9 @@ int HttpClientSync(string ip, string port, vector<string>& messageToSend, vector
 				outfile << field.name() << " = " << field.value() << "\n";
 			outfile << "--------------------------------" << std::endl;
 			outfile << "Server: " << res[http::field::server] << "\n";
-
-			//outfile << res.result() << std::endl;
-			//outfile << res.body().data().buffer_bytes() << std::endl;
+			outfile << "--------------------------------" << std::endl;
+			outfile << res.result() << std::endl;
+			outfile << res.body().data().buffer_bytes() << std::endl;
 			outfile.close();
 		}
 
@@ -605,4 +537,22 @@ string MakeSysInfoJson() {
 	pt::write_json("c:\\input\\aaa.json", root);
 	string json = ss.str();
 	return json;
+}
+
+void GetAddress(string& srvrIP, string& srvrPort) {
+	Singleton& glb = Singleton::getInstance();
+	if (Size(B_SvrAdr)) {
+		SetBegin(B_SvrAdr);
+		GetNext(B_SvrAdr);
+		srvrIP = J_SRVIP;
+		srvrPort = J_SRVPORT;
+	}
+	else {
+		StrForm(J_SRVIP, 15, srvrIP.c_str());
+		StrForm(J_SRVPORT, 5, srvrPort.c_str());
+		J_SRVDL = 4;
+		J_SRVAT = 10;
+		J_SRVType = 25;
+		Put(B_SvrAdr);
+	}
 }

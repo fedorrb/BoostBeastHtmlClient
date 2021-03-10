@@ -54,7 +54,6 @@ class Singleton
     int screenMaxX;
     int screenMaxY;
 	int vidpov;
-	int socketType;
     bool debug;
 };
 #endif
