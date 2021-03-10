@@ -1,9 +1,9 @@
 #ifndef _SINGLETON
 #define _SINGLETON
-// ласс существующий в единственном экземл€ре
-//дл€ хранени€ глобальных переменных
+//A class that exists in a single instance
+//for storing global variables
 #include <string>
-class Singleton;  // опережающее объ€вление
+class Singleton;  // advance announcement
   
 class SingletonDestroyer
 {
@@ -27,7 +27,7 @@ class Singleton
     friend class SingletonDestroyer;
   public:
     static Singleton& getInstance();    
-    //объ€влени€ глобальных переменных
+    //global variable declarations
     unsigned short int rayon;
     unsigned short int uzel;
     unsigned short int insCode;

@@ -1,5 +1,7 @@
-//	Федорчук Р.Б.
-//--------------------------------------
+//---------------------------------------------
+//  Messaging with the server via HTTP protocol
+//	Fedorchuk R.B.
+//---------------------------------------------
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -59,14 +61,14 @@ void GetAddress(string& srvrIP, string& srvrPort);
 
 USETOOLS;USESHELL;USETECH;
 
-ASOPDMAIN("Обмін через сокет.");
+ASOPDMAIN("Messaging with the server");
 
 int main(int argc, char** argv)
 {
 	int result = 1;
 
 	INITTOOLS(); INITSHELL(); INITTECH();
-	Singleton& glb = Singleton::getInstance(); 	//создание экземпляра класса глобальных переменных
+	Singleton& glb = Singleton::getInstance(); 	//creating an instance of a class of global variables
 	StackReset();
 	SetDateDelim('.');
 	Initiate();
@@ -95,9 +97,9 @@ int main(int argc, char** argv)
 
 	if(argc == 4) {
 		glb.pathAdmin = argv[0];
-		glb.fileNameIn = argv[1]; //файл с входящим сообщением
-		glb.fileNameOut = argv[2]; //файл для выходящего сообщения
-		glb.reqCode = argv[3];//код обміну
+		glb.fileNameIn = argv[1]; //file with incoming message
+		glb.fileNameOut = argv[2]; //file for outgoing message
+		glb.reqCode = argv[3]; //exchange code
 		glb.vidpov = 1;
 		Display (WndBusy, BOSBusyForm);//BUSY_FORM
 		result = glb.vidpov;
@@ -114,7 +116,7 @@ int main(int argc, char** argv)
 	return result; 
 }
 
-//возвращает содержимое входного файла в вектор
+//returns the contents of the input file to a vector
 bool LoadJsonFromFileHtml(const char* in_filename, vector<string>& messageToSend) {
 	Singleton& glb = Singleton::getInstance();
 	bool result = false;
@@ -229,7 +231,6 @@ int STAYPROC BOSBusyForm( StayEvent s, StayEvent id )
 	jsonOut[0] = '\0';
 	string srvrIP = "10.0.8.92";
 	string srvrPort = "1871";
-	//создание экземпляра класса глобальных переменных
 	Singleton &glb = Singleton::getInstance();
 	char errorMsg[100];
 	errorMsg[0] = '\0';
@@ -532,7 +533,6 @@ string MakeSysInfoJson() {
 	root.put("MaxScrHeight", glb.screenMaxY);
 	std::stringstream ss;
 	pt::write_json(ss, root, true);
-	//pt::write_json("c:\\input\\aaa.json", root);
 	pt::write_json(glb.debugPath + "\\sysinfo.json", root);
 	string json = ss.str();
 	return json;
