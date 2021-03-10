@@ -30,15 +30,8 @@ class Singleton
     //объ€влени€ глобальных переменных
     unsigned short int rayon;
     unsigned short int uzel;
-    unsigned short int prSpov;
-    unsigned short int mejdunar;
     unsigned short int insCode;
-    unsigned short int kfn;
-    unsigned short int kfnPidv;
     char insFio [51];
-    unsigned short int dateBeg;
-    unsigned short int kand;
-	int dtClosedInv;
 	std::string fileNameIn;
 	std::string fileNameOut;
     std::string reqCode;
@@ -55,5 +48,6 @@ class Singleton
     int screenMaxY;
 	int vidpov;
     bool debug;
+    std::string debugPath;
 };
 #endif

@@ -48,7 +48,6 @@ StayEventProc BOSBusyForm; //BUSY_FORM
 StayEventProc BOSWSetAddr;
 void SaveJsonToFile (const char *out_filename, int code, vector<string> & receivedLines);
 int SaveLogFileAll (vector<string> & messageToSend, int direction);
-void DeleteSrvrAdr();
 const int MAXMESSAGE = 131072; //#define DEFAULT_BUFLEN 1024 in socketcl.h
 const unsigned long MAXLOGFILESIZE = 20000000; //20Mb
 void replaceAll(std::string& str, const std::string& from, const std::string& to);
@@ -71,6 +70,7 @@ int main(int argc, char** argv)
 	StackReset();
 	SetDateDelim('.');
 	Initiate();
+	char sokPath[80];
 	glb.debug = true;
 	//glb.debug = false;
 	if (!StartProcSet(&glb.insCode, NULL, glb.insFio, NULL))
@@ -84,8 +84,15 @@ int main(int argc, char** argv)
 		glb.uzel = fGetTech("узел");
 	}
 	GetSystemInfo();
-	if(glb.debug)
+	if (glb.debug) {
+		FullPath(sokPath, "SOK:");
+		glb.debugPath = sokPath;
 		MakeSysInfoJson();
+	}
+	else {
+		glb.debugPath = "";
+	}
+
 	if(argc == 4) {
 		glb.pathAdmin = argv[0];
 		glb.fileNameIn = argv[1]; //файл с входящим сообщением
@@ -342,15 +349,6 @@ int STAYPROC BOSWSetAddr( StayEvent s, StayEvent id )
 	return 0;
 }
 
-void DeleteSrvrAdr() {
-	if(FFind("SOK:SRVRADRS.DT", NULL)) {
-		FDelete("LS:SRVRADRS.DT");
-	}
-	if(FFind("SOK:SRVRADRS.BTV", NULL)) {
-		FDelete("LS:SRVRADRS.BTV");
-	}
-}
-
 //https://stackoverflow.com/questions/3418231/replace-part-of-a-string-with-another-string
 void replaceAll(std::string& str, const std::string& from, const std::string& to) {
     if(from.empty())
@@ -426,7 +424,7 @@ int HttpClientSync(string ip, string port, vector<string>& messageToSend, vector
 
 		if (glb.debug) {
 			ofstream outfile;
-			outfile.open("c:\\input\\aaa.txt");
+			outfile.open(glb.debugPath + "\\debug.txt");
 			outfile << "REQUEST:" << std::endl;
 			outfile << req << std::endl;
 			outfile << "--------------------------------" << std::endl;
@@ -534,7 +532,8 @@ string MakeSysInfoJson() {
 	root.put("MaxScrHeight", glb.screenMaxY);
 	std::stringstream ss;
 	pt::write_json(ss, root, true);
-	pt::write_json("c:\\input\\aaa.json", root);
+	//pt::write_json("c:\\input\\aaa.json", root);
+	pt::write_json(glb.debugPath + "\\sysinfo.json", root);
 	string json = ss.str();
 	return json;
 }
