@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <vector>
 #include <string>
+#include <codecvt>
 #include <exception>
 #include <stdio.h>
 
@@ -49,15 +50,17 @@ vector<string> errorMessage;
 StayEventProc BOSBusyForm; //BUSY_FORM
 StayEventProc BOSWSetAddr;
 void SaveJsonToFile (const char *out_filename, int code, vector<string> & receivedLines);
-int SaveLogFileAll (vector<string> & messageToSend, int direction);
+int SaveLogFile (vector<string> & messageToSend, int direction);
 const int MAXMESSAGE = 131072; //#define DEFAULT_BUFLEN 1024 in socketcl.h
 const unsigned long MAXLOGFILESIZE = 20000000; //20Mb
 void replaceAll(std::string& str, const std::string& from, const std::string& to);
 int HttpClientSync(string ip, string port, vector<string>& messageToSend, vector<string>& receivedMessage);
-bool LoadJsonFromFileHtml(const char* in_filename, vector<string>& messageToSend);
+bool LoadJsonFromFile(const char* in_filename, vector<string>& messageToSend);
 void GetSystemInfo();
 string MakeSysInfoJson();
 void GetAddress(string& srvrIP, string& srvrPort);
+std::string utf8_to_string(const char* utf8str, const locale& loc);
+bool utf8_check_is_valid(const string& string);
 
 USETOOLS;USESHELL;USETECH;
 
@@ -73,8 +76,8 @@ int main(int argc, char** argv)
 	SetDateDelim('.');
 	Initiate();
 	char sokPath[80];
-	glb.debug = true;
-	//glb.debug = false;
+	//glb.debug = true;
+	glb.debug = false;
 	if (!StartProcSet(&glb.insCode, NULL, glb.insFio, NULL))
 	{
 		glb.rayon = 3225;
@@ -117,7 +120,7 @@ int main(int argc, char** argv)
 }
 
 //returns the contents of the input file to a vector
-bool LoadJsonFromFileHtml(const char* in_filename, vector<string>& messageToSend) {
+bool LoadJsonFromFile(const char* in_filename, vector<string>& messageToSend) {
 	Singleton& glb = Singleton::getInstance();
 	bool result = false;
 	char buf[MAXMESSAGE];
@@ -138,25 +141,22 @@ bool LoadJsonFromFileHtml(const char* in_filename, vector<string>& messageToSend
 }
 
 void SaveJsonToFile (const char *out_filename, int code, vector<string> & receivedLines) {
-	StayFile fJsonOut;
-	int len = 0;
 	char ansCode[4];
 	memset(ansCode, 0, sizeof(ansCode));
-	if(code < 0)
-		StrForm(ansCode, 3, "-1|");//error
-	else
-		StrForm(ansCode, 2, "0|"); //no error
+	StrForm(ansCode, 3, "-1|");//error
+	StayFile fJsonOut;
     fJsonOut=FCreate(out_filename, RDWR);
 	if(fJsonOut) {
-		FWrite(fJsonOut, ansCode, (int) strlen(ansCode)); 
+		if(code < 0)
+			FWrite(fJsonOut, ansCode, (int)strlen(ansCode));
 		for(std::vector<string>::iterator it = receivedLines.begin(); it != receivedLines.end(); ++it) {
 			FWrite(fJsonOut, (*it).c_str(), (int) strlen((*it).c_str()));
 		}
+		FClose(fJsonOut);
 	}
-    FClose(fJsonOut);
 }
 
-int SaveLogFileAll (vector<string> & messageToSend, int direction) {
+int SaveLogFile (vector<string> & messageToSend, int direction) {
 	int result = 0;
 	Singleton &glb = Singleton::getInstance();
 	char buf[MAXMESSAGE];
@@ -246,17 +246,17 @@ int STAYPROC BOSBusyForm( StayEvent s, StayEvent id )
 		GetAddress(srvrIP, srvrPort);
 		if (B_SvrAdr->bs)
 			Close(B_SvrAdr);
-		if (LoadJsonFromFileHtml(glb.fileNameIn.c_str(), messageToSend)) {
+		if (LoadJsonFromFile(glb.fileNameIn.c_str(), messageToSend)) {
 			if (HttpClientSync(srvrIP, srvrPort, messageToSend, receivedLines)) {
 				//error
 				SaveJsonToFile(glb.fileNameOut.c_str(), -1, receivedLines);
-				SaveLogFileAll(receivedLines, 1);
+				SaveLogFile(receivedLines, 1);
 			}
 			else {
 				//ok
 				glb.vidpov = 0;
 				SaveJsonToFile(glb.fileNameOut.c_str(), 0, receivedLines);
-				SaveLogFileAll(receivedLines, 1);
+				SaveLogFile(receivedLines, 1);
 			}
 		}
 		else {
@@ -264,7 +264,7 @@ int STAYPROC BOSBusyForm( StayEvent s, StayEvent id )
 			receivedLines.clear();
 			receivedLines.push_back(err);
 			SaveJsonToFile(glb.fileNameOut.c_str(), -1, receivedLines);
-			SaveLogFileAll(receivedLines, 0);
+			SaveLogFile(receivedLines, 0);
 		}
 
 		Exit(_Ok);
@@ -308,7 +308,7 @@ int STAYPROC BOSWSetAddr( StayEvent s, StayEvent id )
 		StrForm(buf, MAXMESSAGE, "%s %s %D %D", J_SRVIP, J_SRVPORT, _J_SRVDL, _J_SRVAT);
 		errorMessage.clear();
 		errorMessage.push_back(buf);
-		SaveLogFileAll(errorMessage, 0);
+		SaveLogFile(errorMessage, 0);
 		Exit(_Ok);
 		break;
 	case BUT2:
@@ -326,7 +326,7 @@ int STAYPROC BOSWSetAddr( StayEvent s, StayEvent id )
 				for (const auto& piece : receivedLines) errorStr += piece; //copy vector to string
 				MsgBox("Помилка", errorStr.c_str());
 				receivedLines.push_back(".    IP = " + srvrIP + ", PORT = " + srvrPort);
-				SaveLogFileAll(receivedLines, 1);//error
+				SaveLogFile(receivedLines, 1);//error
 			}
 			else {
 				std::transform(receivedLines[0].begin(), receivedLines[0].end(), receivedLines[0].begin(), ::toupper);
@@ -338,7 +338,7 @@ int STAYPROC BOSWSetAddr( StayEvent s, StayEvent id )
 					MsgBox("Помилка", errorStr.c_str());
 				}
 				receivedLines.push_back(".    IP = " + srvrIP + ", PORT = " + srvrPort);
-				SaveLogFileAll(receivedLines, 1);//ok
+				SaveLogFile(receivedLines, 1);//ok
 			}
 		}
 		else {
@@ -421,7 +421,11 @@ int HttpClientSync(string ip, string port, vector<string>& messageToSend, vector
 		std::cout << res << std::endl;
 
 		std::string s = boost::beast::buffers_to_string(res.body().data());
-		receivedMessage.push_back(s);
+		std::string ansiStr = s;
+		if (utf8_check_is_valid(s)) {
+			ansiStr = utf8_to_string(s.c_str(), locale(".1251"));
+		}
+		receivedMessage.push_back(ansiStr);
 
 		if (glb.debug) {
 			ofstream outfile;
@@ -433,10 +437,10 @@ int HttpClientSync(string ip, string port, vector<string>& messageToSend, vector
 			outfile << res << std::endl;
 			outfile << "--------------------------------" << std::endl;
 			outfile << "RESULT BODY:" << std::endl;
-			outfile << s << std::endl;
+			outfile << ansiStr << std::endl;
 			outfile << "--------------------------------" << std::endl;
 			outfile << "RESULT PARSED BODY:" << std::endl;
-			std::stringstream jsonEncodedData(s);
+			std::stringstream jsonEncodedData(ansiStr);
 			boost::property_tree::ptree rootHive;
 			boost::property_tree::read_json(jsonEncodedData, rootHive);
 			boost::property_tree::write_json(jsonEncodedData, rootHive);
@@ -554,4 +558,37 @@ void GetAddress(string& srvrIP, string& srvrPort) {
 		J_SRVType = 25;
 		Put(B_SvrAdr);
 	}
+}
+
+std::string utf8_to_string(const char* utf8str, const locale& loc) {
+	// UTF-8 to wstring
+	wstring_convert<codecvt_utf8<wchar_t>> wconv;
+	wstring wstr = wconv.from_bytes(utf8str);
+	// wstring to string
+	vector<char> buf(wstr.size());
+	use_facet<ctype<wchar_t>>(loc).narrow(wstr.data(), wstr.data() + wstr.size(), '?', buf.data());
+	return string(buf.data(), buf.size());
+}
+
+bool utf8_check_is_valid(const string& string)
+{
+	int c, i, ix, n, j;
+	for (i = 0, ix = string.length(); i < ix; i++)
+	{
+		c = (unsigned char)string[i];
+		//if (c==0x09 || c==0x0a || c==0x0d || (0x20 <= c && c <= 0x7e) ) n = 0; // is_printable_ascii
+		if (0x00 <= c && c <= 0x7f) n = 0; // 0bbbbbbb
+		else if ((c & 0xE0) == 0xC0) n = 1; // 110bbbbb
+		else if (c == 0xed && i < (ix - 1) && ((unsigned char)string[i + 1] & 0xa0) == 0xa0) return false; //U+d800 to U+dfff
+		else if ((c & 0xF0) == 0xE0) n = 2; // 1110bbbb
+		else if ((c & 0xF8) == 0xF0) n = 3; // 11110bbb
+		//else if (($c & 0xFC) == 0xF8) n=4; // 111110bb //byte 5, unnecessary in 4 byte UTF-8
+		//else if (($c & 0xFE) == 0xFC) n=5; // 1111110b //byte 6, unnecessary in 4 byte UTF-8
+		else return false;
+		for (j = 0; j < n && i < ix; j++) { // n bytes matching 10bbbbbb follow ?
+			if ((++i == ix) || (((unsigned char)string[i] & 0xC0) != 0x80))
+				return false;
+		}
+	}
+	return true;
 }
