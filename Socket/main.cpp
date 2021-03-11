@@ -61,6 +61,7 @@ string MakeSysInfoJson();
 void GetAddress(string& srvrIP, string& srvrPort);
 std::string utf8_to_string(const char* utf8str, const locale& loc);
 bool utf8_check_is_valid(const string& string);
+void SaveDebugInfo(const http::request<http::string_body>& req, const http::response<http::dynamic_body>& res, const string& ansiStr);
 
 USETOOLS;USESHELL;USETECH;
 
@@ -76,8 +77,8 @@ int main(int argc, char** argv)
 	SetDateDelim('.');
 	Initiate();
 	char sokPath[80];
-	//glb.debug = true;
-	glb.debug = false;
+	glb.debug = true;
+	//glb.debug = false;
 	if (!StartProcSet(&glb.insCode, NULL, glb.insFio, NULL))
 	{
 		glb.rayon = 3225;
@@ -418,7 +419,10 @@ int HttpClientSync(string ip, string port, vector<string>& messageToSend, vector
 		http::read(stream, buffer, res);
 
 		// Write the message to standard out
-		std::cout << res << std::endl;
+		//std::cout << res << std::endl;
+		int aaaa = res.result_int();
+		if (aaaa >= 500 && aaaa < 600)
+			MsgBox("Помилка", "Помилка на сервері!");
 
 		std::string s = boost::beast::buffers_to_string(res.body().data());
 		std::string ansiStr = s;
@@ -426,36 +430,6 @@ int HttpClientSync(string ip, string port, vector<string>& messageToSend, vector
 			ansiStr = utf8_to_string(s.c_str(), locale(".1251"));
 		}
 		receivedMessage.push_back(ansiStr);
-
-		if (glb.debug) {
-			ofstream outfile;
-			outfile.open(glb.debugPath + "\\debug.txt");
-			outfile << "REQUEST:" << std::endl;
-			outfile << req << std::endl;
-			outfile << "--------------------------------" << std::endl;
-			outfile << "RESULT:" << std::endl;
-			outfile << res << std::endl;
-			outfile << "--------------------------------" << std::endl;
-			outfile << "RESULT BODY:" << std::endl;
-			outfile << ansiStr << std::endl;
-			outfile << "--------------------------------" << std::endl;
-			outfile << "RESULT PARSED BODY:" << std::endl;
-			std::stringstream jsonEncodedData(ansiStr);
-			boost::property_tree::ptree rootHive;
-			boost::property_tree::read_json(jsonEncodedData, rootHive);
-			boost::property_tree::write_json(jsonEncodedData, rootHive);
-			outfile << jsonEncodedData.str() << std::endl;
-			outfile << "--------------------------------" << std::endl;
-			outfile << "HEADER:" << std::endl;
-			for (auto const& field : res)
-				outfile << field.name() << " = " << field.value() << "\n";
-			outfile << "--------------------------------" << std::endl;
-			outfile << "Server: " << res[http::field::server] << "\n";
-			outfile << "--------------------------------" << std::endl;
-			outfile << res.result() << std::endl;
-			outfile << res.body().data().buffer_bytes() << std::endl;
-			outfile.close();
-		}
 
 		// Gracefully close the socket
 		beast::error_code ec;
@@ -468,6 +442,9 @@ int HttpClientSync(string ip, string port, vector<string>& messageToSend, vector
 			throw beast::system_error{ ec };
 
 		// If we get here then the connection is closed gracefully
+		if (glb.debug) {
+			SaveDebugInfo(req, res, ansiStr);
+		}
 	}
 	catch (std::exception const& e)
 	{
@@ -591,4 +568,52 @@ bool utf8_check_is_valid(const string& string)
 		}
 	}
 	return true;
+}
+
+void SaveDebugInfo(const http::request<http::string_body>& req, const http::response<http::dynamic_body>& res, const string& ansiStr) {
+	Singleton& glb = Singleton::getInstance();
+	try {
+		ofstream outfile;
+		outfile.open(glb.debugPath + "\\debug.txt");
+		if (outfile.is_open()) {
+			try {
+				outfile << "REQUEST:" << std::endl;
+				outfile << req << std::endl;
+				outfile << "--------------------------------" << std::endl;
+				outfile << "RESULT:" << std::endl;
+				outfile << res << std::endl;
+				outfile << "--------------------------------" << std::endl;
+				outfile << "RESULT BODY:" << std::endl;
+				outfile << ansiStr << std::endl;
+				outfile << "--------------------------------" << std::endl;
+				outfile << "RESULT PARSED BODY:" << std::endl;
+				try {
+					std::stringstream jsonEncodedData(ansiStr);
+					boost::property_tree::ptree rootHive;
+					boost::property_tree::read_json(jsonEncodedData, rootHive);
+					boost::property_tree::write_json(jsonEncodedData, rootHive);
+					outfile << jsonEncodedData.str() << std::endl;
+				}
+				catch (...) {
+					MsgBox("Error", "jsonEncodedData");
+				}
+				outfile << "--------------------------------" << std::endl;
+				outfile << "HEADER:" << std::endl;
+				for (auto const& field : res)
+					outfile << field.name() << " = " << field.value() << "\n";
+				outfile << "--------------------------------" << std::endl;
+				outfile << "Server: " << res[http::field::server] << "\n";
+				outfile << "--------------------------------" << std::endl;
+				outfile << res.result() << std::endl;
+				outfile << res.body().data().buffer_bytes() << std::endl;
+				outfile.close();
+			}
+			catch (...) {
+				outfile.close();
+			}
+		}
+	}
+	catch (...) {
+		MsgBox("Error", "debug.txt");
+	}
 }
