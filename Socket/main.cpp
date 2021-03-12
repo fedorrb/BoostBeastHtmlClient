@@ -449,6 +449,7 @@ int HttpClientSync(string ip, string port, vector<string>& messageToSend, vector
 	catch (std::exception const& e)
 	{
 		receivedMessage.push_back(e.what());
+		MsgBox("Помилка", e.what());
 		return EXIT_FAILURE;
 	}
 	return EXIT_SUCCESS;
@@ -594,8 +595,8 @@ void SaveDebugInfo(const http::request<http::string_body>& req, const http::resp
 					boost::property_tree::write_json(jsonEncodedData, rootHive);
 					outfile << jsonEncodedData.str() << std::endl;
 				}
-				catch (...) {
-					MsgBox("Error", "jsonEncodedData");
+				catch (std::exception const& e) {
+					MsgBox("Error JsonEncodedData", e.what());
 				}
 				outfile << "--------------------------------" << std::endl;
 				outfile << "HEADER:" << std::endl;
@@ -608,12 +609,13 @@ void SaveDebugInfo(const http::request<http::string_body>& req, const http::resp
 				outfile << res.body().data().buffer_bytes() << std::endl;
 				outfile.close();
 			}
-			catch (...) {
+			catch (std::exception const& e) {
 				outfile.close();
+				MsgBox("Error write debug.txt", e.what());
 			}
 		}
 	}
-	catch (...) {
-		MsgBox("Error", "debug.txt");
+	catch (std::exception const& e) {
+		MsgBox("Error", e.what());
 	}
 }
