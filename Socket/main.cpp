@@ -20,6 +20,16 @@
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
 
+/*
+#include "example/common/root_certificates.hpp"
+
+#include <boost/beast/ssl.hpp>
+#include <boost/asio/ssl/error.hpp>
+#include <boost/asio/ssl/stream.hpp>
+
+namespace ssl = net::ssl;       // from <boost/asio/ssl.hpp>
+*/
+
 #include <cstdlib>
 
 #include <normalize.h>
@@ -61,7 +71,7 @@ string MakeSysInfoJson();
 void GetAddress(string& srvrIP, string& srvrPort);
 std::string utf8_to_string(const char* utf8str, const locale& loc);
 bool utf8_check_is_valid(const string& string);
-void SaveDebugInfo(const http::request<http::string_body>& req, const http::response<http::dynamic_body>& res, const string& ansiStr);
+void SaveDebugInfo(const http::request<http::string_body>& req, const http::response<http::dynamic_body>& res, const string& ansiStr, bool convertFromUtf8);
 
 USETOOLS;USESHELL;USETECH;
 
@@ -181,7 +191,15 @@ int SaveLogFile (vector<string> & messageToSend, int direction) {
 	int size_v = static_cast<int>(splitLines.size());
 
 	unsigned long fileSize = 0;
-	StrForm(buf, MAXMESSAGE, "\r\n%10v %5t %3s ", dtNow, tmNow, buf_inout);
+	int code = 0;
+	try {
+		code = std::stoi(glb.reqCode);
+	}
+	catch (...) {
+		code = 0;
+	}
+
+	StrForm(buf, MAXMESSAGE, "\r\n%10v %5t %3s code:%d", dtNow, tmNow, buf_inout, code);
 	StayFile logFile;
 	int len = StrLen(buf);
 	StrForm(name_log_file, 256, "SOK:socket%u.log", glb.insCode);
@@ -251,12 +269,14 @@ int STAYPROC BOSBusyForm( StayEvent s, StayEvent id )
 			if (HttpClientSync(srvrIP, srvrPort, messageToSend, receivedLines)) {
 				//error
 				SaveJsonToFile(glb.fileNameOut.c_str(), -1, receivedLines);
+				SaveLogFile(messageToSend, 0);
 				SaveLogFile(receivedLines, 1);
 			}
 			else {
 				//ok
 				glb.vidpov = 0;
 				SaveJsonToFile(glb.fileNameOut.c_str(), 0, receivedLines);
+				SaveLogFile(messageToSend, 0);
 				SaveLogFile(receivedLines, 1);
 			}
 		}
@@ -325,7 +345,7 @@ int STAYPROC BOSWSetAddr( StayEvent s, StayEvent id )
 			textToSend.push_back(strJsonIn);
 			if (HttpClientSync(srvrIP, srvrPort, textToSend, receivedLines)) {
 				for (const auto& piece : receivedLines) errorStr += piece; //copy vector to string
-				MsgBox("Помилка", errorStr.c_str());
+				//MsgBox("Помилка", errorStr.c_str());
 				receivedLines.push_back(".    IP = " + srvrIP + ", PORT = " + srvrPort);
 				SaveLogFile(receivedLines, 1);//error
 			}
@@ -386,11 +406,10 @@ int HttpClientSync(string ip, string port, vector<string>& messageToSend, vector
 		stream.connect(results);
 
 		// Set up an HTTP POST request message
-		//http::request<http::string_body> req{ http::verb::get, target, version };
 		http::request<http::string_body> req{ http::verb::post, target, version };
 		req.set(http::field::host, ip);
 		req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
-		//req.set(beast::http::field::content_type, "text/plain");
+		req.set(beast::http::field::content_type, "application/json");
 
 		req.set("MD5", glb.md5);
 		req.set("CpuCore", std::to_string(glb.dwNumberOfProcessors));
@@ -419,15 +438,16 @@ int HttpClientSync(string ip, string port, vector<string>& messageToSend, vector
 		http::read(stream, buffer, res);
 
 		// Write the message to standard out
-		//std::cout << res << std::endl;
 		int aaaa = res.result_int();
 		if (aaaa >= 500 && aaaa < 600)
 			MsgBox("Помилка", "Помилка на сервері!");
 
 		std::string s = boost::beast::buffers_to_string(res.body().data());
 		std::string ansiStr = s;
+		bool convertFromUtf8 = false;
 		if (utf8_check_is_valid(s)) {
 			ansiStr = utf8_to_string(s.c_str(), locale(".1251"));
+			convertFromUtf8 = true;
 		}
 		receivedMessage.push_back(ansiStr);
 
@@ -437,13 +457,12 @@ int HttpClientSync(string ip, string port, vector<string>& messageToSend, vector
 
 		// not_connected happens sometimes
 		// so don't bother reporting it.
-		//
 		if (ec && ec != beast::errc::not_connected)
 			throw beast::system_error{ ec };
 
 		// If we get here then the connection is closed gracefully
 		if (glb.debug) {
-			SaveDebugInfo(req, res, ansiStr);
+			SaveDebugInfo(req, res, s, convertFromUtf8);
 		}
 	}
 	catch (std::exception const& e)
@@ -454,6 +473,89 @@ int HttpClientSync(string ip, string port, vector<string>& messageToSend, vector
 	}
 	return EXIT_SUCCESS;
 }
+/*
+int HttpSslClientSync(string host, string port, vector<string>& messageToSend, vector<string>& receivedMessage) {
+	Singleton& glb = Singleton::getInstance();
+	try
+	{
+		receivedMessage.clear();
+		auto const target = "/api/asopd/v2/r/" + glb.reqCode;
+		int version = 11;
+
+		// The io_context is required for all I/O
+		net::io_context ioc;
+
+		// The SSL context is required, and holds certificates
+		ssl::context ctx(ssl::context::tlsv12_client);
+
+		// This holds the root certificate used for verification
+		load_root_certificates(ctx);
+
+		// Verify the remote server's certificate
+		ctx.set_verify_mode(ssl::verify_peer);
+
+		// These objects perform our I/O
+		tcp::resolver resolver(ioc);
+		beast::ssl_stream<beast::tcp_stream> stream(ioc, ctx);
+
+		// Set SNI Hostname (many hosts need this to handshake successfully)
+		if (!SSL_set_tlsext_host_name(stream.native_handle(), host))
+		{
+			beast::error_code ec{ static_cast<int>(::ERR_get_error()), net::error::get_ssl_category() };
+			throw beast::system_error{ ec };
+		}
+
+		// Look up the domain name
+		auto const results = resolver.resolve(host, port);
+
+		// Make the connection on the IP address we get from a lookup
+		beast::get_lowest_layer(stream).connect(results);
+
+		// Perform the SSL handshake
+		stream.handshake(ssl::stream_base::client);
+
+		// Set up an HTTP GET request message
+		http::request<http::string_body> req{ http::verb::get, target, version };
+		req.set(http::field::host, host);
+		req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
+
+		// Send the HTTP request to the remote host
+		http::write(stream, req);
+
+		// This buffer is used for reading and must be persisted
+		beast::flat_buffer buffer;
+
+		// Declare a container to hold the response
+		http::response<http::dynamic_body> res;
+
+		// Receive the HTTP response
+		http::read(stream, buffer, res);
+
+		// Write the message to standard out
+		std::cout << res << std::endl;
+
+		// Gracefully close the stream
+		beast::error_code ec;
+		stream.shutdown(ec);
+		if (ec == net::error::eof)
+		{
+			// Rationale:
+			// http://stackoverflow.com/questions/25587403/boost-asio-ssl-async-shutdown-always-finishes-with-an-error
+			ec = {};
+		}
+		if (ec)
+			throw beast::system_error{ ec };
+
+		// If we get here then the connection is closed gracefully
+	}
+	catch (std::exception const& e)
+	{
+		std::cerr << "Error: " << e.what() << std::endl;
+		return EXIT_FAILURE;
+	}
+	return EXIT_SUCCESS;
+}
+*/
 
 void GetSystemInfo() {
 	Singleton& glb = Singleton::getInstance();
@@ -571,7 +673,7 @@ bool utf8_check_is_valid(const string& string)
 	return true;
 }
 
-void SaveDebugInfo(const http::request<http::string_body>& req, const http::response<http::dynamic_body>& res, const string& ansiStr) {
+void SaveDebugInfo(const http::request<http::string_body>& req, const http::response<http::dynamic_body>& res, const string& ansiStr, bool convertFromUtf8) {
 	Singleton& glb = Singleton::getInstance();
 	try {
 		ofstream outfile;
@@ -585,7 +687,10 @@ void SaveDebugInfo(const http::request<http::string_body>& req, const http::resp
 				outfile << res << std::endl;
 				outfile << "--------------------------------" << std::endl;
 				outfile << "RESULT BODY:" << std::endl;
-				outfile << ansiStr << std::endl;
+				if (convertFromUtf8)
+					outfile << utf8_to_string(ansiStr.c_str(), locale(".1251")) << std::endl;
+				else
+					outfile << ansiStr << std::endl;				
 				outfile << "--------------------------------" << std::endl;
 				outfile << "RESULT PARSED BODY:" << std::endl;
 				try {
@@ -593,7 +698,10 @@ void SaveDebugInfo(const http::request<http::string_body>& req, const http::resp
 					boost::property_tree::ptree rootHive;
 					boost::property_tree::read_json(jsonEncodedData, rootHive);
 					boost::property_tree::write_json(jsonEncodedData, rootHive);
-					outfile << jsonEncodedData.str() << std::endl;
+					if(convertFromUtf8)
+						outfile << utf8_to_string(jsonEncodedData.str().c_str(), locale(".1251")) << std::endl;
+					else
+						outfile << jsonEncodedData.str() << std::endl;					
 				}
 				catch (std::exception const& e) {
 					MsgBox("Error JsonEncodedData", e.what());
